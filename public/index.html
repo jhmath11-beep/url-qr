@@ -473,15 +473,15 @@
           <p class="note field full mode-url">
             별칭은 단축 주소의 마지막 부분입니다. 예를 들어 `https://도메인/s/notice`에서 `notice`가 별칭입니다.
           </p>
-          <div class="field full mode-qr" id="qrContentField">
+          <div class="field full mode-qr mode-hidden" id="qrContentField">
             <label for="qrContent">QR에 넣을 URL 또는 문장</label>
             <input id="qrContent" placeholder="https://example.com 또는 안내 문구" />
           </div>
-          <div class="field mode-qr">
+          <div class="field mode-qr mode-hidden">
             <label for="qrTitle">QR 상단 제목</label>
             <input id="qrTitle" placeholder="예: 매탄중학교 업무포털" />
           </div>
-          <div class="field mode-qr">
+          <div class="field mode-qr mode-hidden">
             <label for="qrStyle">QR 스타일</label>
             <select id="qrStyle">
               <option value="mascot">캐릭터 카드</option>
@@ -489,7 +489,7 @@
               <option value="poster">포스터형</option>
             </select>
           </div>
-          <div class="field mode-qr">
+          <div class="field mode-qr mode-hidden">
             <label for="bgGradient">배경 그라데이션</label>
             <select id="bgGradient">
               <option value="sky">하늘빛</option>
@@ -499,7 +499,7 @@
               <option value="mono">화이트그레이</option>
             </select>
           </div>
-          <div class="field mode-qr">
+          <div class="field mode-qr mode-hidden">
             <label for="qrImage">QR 이미지</label>
             <div class="upload-row">
               <input id="qrImage" type="file" accept="image/*" />
@@ -507,14 +507,14 @@
               <button class="btn secondary" id="hideImage" type="button">이미지 없음</button>
             </div>
           </div>
-          <div class="field mode-qr">
+          <div class="field mode-qr mode-hidden">
             <label for="bottomImageMode">하단 이미지</label>
             <select id="bottomImageMode">
               <option value="show">보이기</option>
               <option value="hide">숨기기</option>
             </select>
           </div>
-          <div class="field full mode-qr">
+          <div class="field full mode-qr mode-hidden">
             <label>색상</label>
             <div class="swatches">
               <button class="swatch active" type="button" data-color="#061565" style="background:#061565"></button>
@@ -733,7 +733,7 @@
       const wantsQr = mode === "qr" || mode === "both";
       document.querySelectorAll(".mode-url").forEach((item) => item.classList.toggle("mode-hidden", !wantsUrl));
       document.querySelectorAll(".mode-qr").forEach((item) => item.classList.toggle("mode-hidden", !wantsQr));
-      $("qrContentField").classList.toggle("mode-hidden", mode === "both");
+      $("qrContentField").classList.toggle("mode-hidden", mode !== "qr");
       $("previewPane").classList.toggle("hidden", !wantsQr);
       $("mainBtn").textContent = mode === "short" ? "URL 단축하기" : mode === "qr" ? "QR 생성하기" : "URL 단축과 QR 생성하기";
       $("copyBtn").classList.toggle("mode-hidden", mode === "qr");
