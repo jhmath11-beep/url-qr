@@ -1,0 +1,1083 @@
+﻿<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>URL단축 & QR코드 생성기</title>
+  <script src="assets/qrcode.min.js"></script>
+  <style>
+    :root {
+      --ink: #1c1d22;
+      --muted: #6d7280;
+      --line: #dde0e8;
+      --paper: #fffdf8;
+      --navy: #061565;
+      --pink: #df5a82;
+      --yellow: #fff53a;
+      --green: #16866d;
+      --shadow: 0 18px 45px rgba(20, 25, 35, .12);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      font-family: "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+      background:
+        linear-gradient(90deg, rgba(6,21,101,.08) 1px, transparent 1px),
+        linear-gradient(rgba(6,21,101,.08) 1px, transparent 1px),
+        var(--paper);
+      background-size: 34px 34px;
+    }
+
+    button, input, select { font: inherit; }
+
+    .app {
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(340px, 460px);
+      gap: 28px;
+      padding: 28px;
+    }
+
+    .workspace, .preview { min-width: 0; }
+
+    .topbar, .panel, .qr-card {
+      background: rgba(255, 255, 255, .93);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      padding: 16px 18px;
+      margin-bottom: 18px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+    }
+
+    .brand img {
+      width: 54px;
+      height: 54px;
+      object-fit: contain;
+      border-radius: 50%;
+      background: #fff;
+      border: 1px solid var(--line);
+    }
+
+    h1, h2, p { margin: 0; }
+
+    h1 {
+      font-size: 23px;
+      line-height: 1.2;
+      letter-spacing: 0;
+    }
+
+    .status {
+      margin-top: 5px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .pill {
+      flex-shrink: 0;
+      border-radius: 999px;
+      background: #eaf7f1;
+      color: #116650;
+      padding: 9px 12px;
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .tabs {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #f7f7fb;
+      flex-shrink: 0;
+    }
+
+    .tab {
+      border: 0;
+      border-radius: 6px;
+      min-height: 40px;
+      padding: 0 13px;
+      background: transparent;
+      color: #343846;
+      font-weight: 800;
+      cursor: pointer;
+    }
+
+    .tab.active {
+      color: #fff;
+      background: var(--navy);
+      box-shadow: 0 7px 16px rgba(6, 21, 101, .2);
+    }
+
+    .mode-hidden { display: none !important; }
+
+    .panel {
+      padding: 20px;
+    }
+
+    .formgrid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 15px;
+    }
+
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+      min-width: 0;
+    }
+
+    .field.full { grid-column: 1 / -1; }
+
+    label {
+      font-size: 13px;
+      font-weight: 800;
+      color: #393d48;
+    }
+
+    input, select {
+      width: 100%;
+      border: 1px solid #cfd2dc;
+      border-radius: 7px;
+      background: #fff;
+      color: var(--ink);
+      padding: 12px 13px;
+      min-height: 45px;
+      outline: none;
+    }
+
+    input:focus, select:focus {
+      border-color: var(--navy);
+      box-shadow: 0 0 0 3px rgba(6, 21, 101, .11);
+    }
+
+    .upload-row {
+      display: grid;
+      grid-template-columns: 1fr auto auto;
+      gap: 8px;
+      align-items: center;
+    }
+
+    input[type="file"] {
+      min-height: auto;
+      padding: 10px;
+      font-size: 13px;
+    }
+
+    .swatches {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 8px;
+    }
+
+    .swatch {
+      min-height: 42px;
+      border-radius: 7px;
+      border: 2px solid transparent;
+      cursor: pointer;
+    }
+
+    .swatch.active {
+      border-color: var(--ink);
+      box-shadow: inset 0 0 0 2px #fff;
+    }
+
+    .actions, .result-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 9px;
+      margin-top: 18px;
+    }
+
+    .btn {
+      border: 1px solid transparent;
+      border-radius: 7px;
+      min-height: 44px;
+      padding: 0 15px;
+      background: var(--navy);
+      color: #fff;
+      font-weight: 800;
+      cursor: pointer;
+    }
+
+    .btn:disabled {
+      opacity: .58;
+      cursor: wait;
+    }
+
+    .btn.secondary {
+      color: var(--ink);
+      background: #fff;
+      border-color: #cfd2dc;
+    }
+
+    .btn.pink { background: var(--pink); }
+
+    .result {
+      display: none;
+      margin-top: 16px;
+      padding: 13px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fbfbfe;
+    }
+
+    .result.show { display: grid; gap: 10px; }
+
+    .result a {
+      color: var(--navy);
+      font-weight: 900;
+      overflow-wrap: anywhere;
+    }
+
+    .owner-tools {
+      grid-column: 1 / -1;
+      display: grid;
+      grid-template-columns: 1fr auto auto auto;
+      gap: 8px;
+      align-items: end;
+    }
+
+    .owner-tools label::after {
+      content: "직접 입력 가능";
+      display: inline-block;
+      margin-left: 8px;
+      padding: 3px 7px;
+      border-radius: 999px;
+      background: #fff3c4;
+      color: #6f4f00;
+      font-size: 11px;
+      font-weight: 900;
+      vertical-align: middle;
+    }
+
+    .link-list {
+      display: none;
+      margin-top: 16px;
+      padding: 13px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fbfbfe;
+    }
+
+    .link-list.show { display: grid; gap: 10px; }
+
+    .link-item {
+      display: grid;
+      gap: 6px;
+      padding: 11px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+    }
+
+    .link-item strong { font-size: 14px; }
+
+    .link-item a {
+      color: var(--navy);
+      font-weight: 800;
+      overflow-wrap: anywhere;
+    }
+
+    .note {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .copyright {
+      margin-top: 18px;
+      color: #575c68;
+      font-size: 12px;
+      line-height: 1.6;
+    }
+
+    .preview {
+      position: sticky;
+      top: 28px;
+      align-self: start;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .preview.hidden {
+      display: none;
+    }
+
+    .qr-card { overflow: hidden; }
+
+    .qr-stage {
+      min-height: 455px;
+      padding: 18px 18px 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      background: linear-gradient(180deg, #dceeff, #fff 34%, #fff9bd);
+    }
+
+    .badge {
+      align-self: stretch;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      padding: 10px 14px;
+      border-radius: 8px;
+      background: rgba(255,255,255,.82);
+      border: 1px solid rgba(255,255,255,.9);
+    }
+
+    .title {
+      font-size: 21px;
+      line-height: 1.25;
+      word-break: keep-all;
+      overflow-wrap: anywhere;
+      letter-spacing: 0;
+      text-align: center;
+      margin: 0;
+    }
+
+    .qr-wrap {
+      position: relative;
+      width: min(82%, 282px);
+      aspect-ratio: 1;
+      display: grid;
+      place-items: center;
+      border-radius: 8px;
+      background: #fff;
+      border: 10px solid #fff;
+      box-shadow: 0 14px 35px rgba(6,21,101,.14);
+    }
+
+    #qrCanvas {
+      width: 100% !important;
+      height: 100% !important;
+      image-rendering: pixelated;
+    }
+
+    .logo-dot {
+      position: absolute;
+      inset: 50% auto auto 50%;
+      transform: translate(-50%, -50%);
+      width: 23%;
+      aspect-ratio: 1;
+      border-radius: 8px;
+      background: #fff;
+      display: grid;
+      place-items: center;
+      border: 6px solid #fff;
+      box-shadow: 0 5px 16px rgba(0,0,0,.14);
+      pointer-events: none;
+    }
+
+    .logo-dot img {
+      width: 118%;
+      height: 118%;
+      object-fit: contain;
+    }
+
+    .mascot {
+      width: min(64%, 210px);
+      height: auto;
+      object-fit: contain;
+      filter: drop-shadow(0 13px 18px rgba(0,0,0,.13));
+    }
+
+    .qr-stage.poster-mode {
+      justify-content: center;
+      gap: 14px;
+      background: linear-gradient(180deg, #fff53a 0%, #ffffff 42%, #ffdce6 100%);
+    }
+
+    .qr-stage.poster-mode .badge {
+      background: #061565;
+      color: #fff;
+      border-color: transparent;
+    }
+
+    .qr-stage.poster-mode .qr-wrap {
+      width: min(86%, 300px);
+      border-width: 12px;
+      transform: rotate(-1.5deg);
+    }
+
+    .qr-stage.poster-mode .mascot {
+      position: absolute;
+      right: 24px;
+      bottom: 82px;
+      width: min(22%, 82px);
+      filter: drop-shadow(0 9px 13px rgba(0,0,0,.2));
+    }
+
+    .preview-tools {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .download-preview {
+      display: none;
+      gap: 8px;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(255,255,255,.93);
+      box-shadow: var(--shadow);
+    }
+
+    .download-preview.show {
+      display: grid;
+    }
+
+    .download-preview img {
+      width: 100%;
+      border-radius: 8px;
+      border: 1px solid var(--line);
+      background: #fff;
+    }
+
+    @media (max-width: 920px) {
+      .app {
+        grid-template-columns: 1fr;
+        padding: 16px;
+      }
+      .topbar {
+        flex-direction: column;
+        align-items: stretch;
+      }
+      .tabs { width: 100%; }
+      .tab { flex: 1; }
+      .preview { position: static; }
+    }
+
+    @media (max-width: 560px) {
+      .formgrid, .upload-row, .preview-tools, .owner-tools { grid-template-columns: 1fr; }
+      .panel { padding: 16px; }
+      .qr-stage {
+        min-height: 500px;
+        padding: 16px;
+      }
+      .title { font-size: 20px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <section class="workspace">
+      <header class="topbar">
+        <div class="brand">
+          <img src="" alt="매라매 캐릭터" />
+          <div>
+            <h1>URL단축 & QR코드 생성기</h1>
+            <p class="status" id="appStatus">서버에 저장되는 실제 단축 URL을 만듭니다.</p>
+          </div>
+        </div>
+        <nav class="tabs" aria-label="작업 선택">
+          <button class="tab active" data-mode="short" type="button">URL 단축</button>
+          <button class="tab" data-mode="qr" type="button">QR 생성</button>
+          <button class="tab" data-mode="both" type="button">둘다 생성</button>
+        </nav>
+      </header>
+
+      <section class="panel">
+        <div class="formgrid">
+          <div class="field full mode-url">
+            <label for="originalUrl">원본 URL</label>
+            <input id="originalUrl" type="url" placeholder="https://example.com/long-url" autocomplete="url" />
+          </div>
+          <div class="field mode-url">
+            <label for="aliasMode">별칭 방식</label>
+            <select id="aliasMode">
+              <option value="auto">자동 생성</option>
+              <option value="manual">직접 입력</option>
+            </select>
+          </div>
+          <div class="field mode-url">
+            <label for="customCode">짧은 별칭</label>
+            <input id="customCode" maxlength="40" placeholder="자동 생성됩니다" disabled />
+          </div>
+          <p class="note field full mode-url">
+            별칭은 단축 주소의 마지막 부분입니다. 예를 들어 `https://도메인/s/notice`에서 `notice`가 별칭입니다.
+          </p>
+          <div class="owner-tools">
+            <div class="field">
+              <label for="ownerCode">내 관리 코드</label>
+              <input id="ownerCode" maxlength="32" placeholder="직접 입력 가능: 예: JBT-KIM-2026" autocomplete="off" />
+            </div>
+            <button class="btn secondary" id="copyOwnerCode" type="button">코드 복사</button>
+            <button class="btn secondary" id="newOwnerCode" type="button">새 코드</button>
+            <button class="btn secondary" id="loadMyLinks" type="button">내 목록 보기</button>
+          </div>
+          <p class="note field full">
+            직접 입력하거나 자동 생성된 코드를 사용하세요. 같은 코드로 다른 PC에서도 내가 만든 단축 URL 목록을 볼 수 있습니다.
+          </p>
+          <div class="field full mode-qr mode-hidden" id="qrContentField">
+            <label for="qrContent">QR에 넣을 URL 또는 문장</label>
+            <input id="qrContent" placeholder="https://example.com 또는 안내 문구" />
+          </div>
+          <div class="field mode-qr mode-hidden">
+            <label for="qrTitle">QR 상단 제목</label>
+            <input id="qrTitle" placeholder="예: 매탄중학교 업무포털" />
+          </div>
+          <div class="field mode-qr mode-hidden">
+            <label for="qrStyle">QR 스타일</label>
+            <select id="qrStyle">
+              <option value="mascot">캐릭터 카드</option>
+              <option value="clean">깔끔한 안내형</option>
+              <option value="poster">포스터형</option>
+            </select>
+          </div>
+          <div class="field mode-qr mode-hidden">
+            <label for="bgGradient">배경 그라데이션</label>
+            <select id="bgGradient">
+              <option value="sky">하늘빛</option>
+              <option value="sunny">노랑핑크</option>
+              <option value="mint">민트화이트</option>
+              <option value="lavender">라벤더</option>
+              <option value="mono">화이트그레이</option>
+            </select>
+          </div>
+          <div class="field mode-qr mode-hidden">
+            <label for="qrImage">QR 이미지</label>
+            <div class="upload-row">
+              <input id="qrImage" type="file" accept="image/*" />
+              <button class="btn secondary" id="resetImage" type="button">기본</button>
+              <button class="btn secondary" id="hideImage" type="button">이미지 없음</button>
+            </div>
+          </div>
+          <div class="field mode-qr mode-hidden">
+            <label for="bottomImageMode">하단 이미지</label>
+            <select id="bottomImageMode">
+              <option value="show">보이기</option>
+              <option value="hide">숨기기</option>
+            </select>
+          </div>
+          <div class="field full mode-qr mode-hidden">
+            <label>색상</label>
+            <div class="swatches">
+              <button class="swatch active" type="button" data-color="#061565" style="background:#061565"></button>
+              <button class="swatch" type="button" data-color="#df5a82" style="background:#df5a82"></button>
+              <button class="swatch" type="button" data-color="#16866d" style="background:#16866d"></button>
+              <button class="swatch" type="button" data-color="#3f3b32" style="background:#3f3b32"></button>
+              <button class="swatch" type="button" data-color="#111111" style="background:#111111"></button>
+            </div>
+          </div>
+        </div>
+
+        <div class="actions">
+          <button class="btn" id="mainBtn" type="button">URL 단축하기</button>
+          <button class="btn secondary" id="copyBtn" type="button">단축 URL 복사</button>
+        </div>
+
+        <div class="result" id="resultBox">
+          <a href="#" target="_blank" rel="noreferrer" id="shortUrl"></a>
+          <p class="note" id="storageNote"></p>
+          <div class="result-actions">
+            <button class="btn pink" id="openBtn" type="button">새 창에서 열기</button>
+            <button class="btn secondary" id="newBtn" type="button">새로 만들기</button>
+          </div>
+        </div>
+        <div class="link-list" id="linkList"></div>
+      </section>
+
+      <p class="note" style="margin-top:12px;">
+        배포 후 도메인을 연결하면 이 앱의 단축 URL 시작 주소도 자동으로 그 도메인이 됩니다.
+      </p>
+      <p class="copyright">
+        Copyright 2026. All rights reserved.<br />
+        By 2026 Junhong KIM
+      </p>
+    </section>
+
+    <aside class="preview hidden" id="previewPane">
+      <section class="qr-card">
+        <div class="qr-stage" id="captureArea">
+          <div class="badge">
+            <h2 class="title" id="previewTitle">매탄중학교 업무포털</h2>
+          </div>
+          <div class="qr-wrap">
+            <canvas id="qrCanvas" width="1024" height="1024"></canvas>
+            <div class="logo-dot" id="logoDot"><img src="" alt="" /></div>
+          </div>
+          <img class="mascot" id="mascotImg" src="" alt="매라매 캐릭터" />
+        </div>
+      </section>
+      <div class="preview-tools">
+        <button class="btn" id="downloadPng" type="button">QR 카드 PNG 저장</button>
+        <button class="btn secondary" id="copyQrText" type="button" title="QR에 담긴 링크나 문장을 복사합니다.">QR 원문 복사</button>
+      </div>
+    </aside>
+  </main>
+
+  <script>
+    const defaultMascotSrc = "assets/maeramae_clean.png";
+    const $ = (id) => document.getElementById(id);
+    const OWNER_CODE_KEY = "maeramaeOwnerCode";
+    const state = {
+      color: "#061565",
+      imageSrc: defaultMascotSrc,
+      imageEnabled: true,
+      lastShortUrl: "",
+      lastQrText: location.origin,
+      mode: "short"
+    };
+
+    function setStatus(message) {
+      $("appStatus").textContent = message;
+    }
+
+    function normalizeUrl(value) {
+      const raw = value.trim();
+      if (!raw) return "";
+      return /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
+    }
+
+    function getQrTitle() {
+      return $("qrTitle").value.trim() || "매탄중학교 업무포털";
+    }
+
+    function generateOwnerCode() {
+      const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+      const part = (length) => Array.from({ length }, () => alphabet[Math.floor(Math.random() * alphabet.length)]).join("");
+      return `JBT-${part(4)}-${part(4)}`;
+    }
+
+    function normalizeOwnerCode(value) {
+      return String(value || "").trim().toUpperCase().replace(/[^A-Z0-9-]/g, "").slice(0, 32);
+    }
+
+    function saveOwnerCode(value) {
+      const code = normalizeOwnerCode(value) || generateOwnerCode();
+      localStorage.setItem(OWNER_CODE_KEY, code);
+      $("ownerCode").value = code;
+      return code;
+    }
+
+    function initOwnerCode() {
+      saveOwnerCode(localStorage.getItem(OWNER_CODE_KEY) || generateOwnerCode());
+    }
+
+    function applyStyle(style) {
+      const stage = $("captureArea");
+      const mascot = $("mascotImg");
+      const dot = $("logoDot");
+      const showImage = state.imageEnabled && style !== "clean";
+      const showBottomImage = showImage && $("bottomImageMode").value === "show";
+      stage.classList.toggle("poster-mode", style === "poster");
+      const bg = getGradient($("bgGradient").value);
+      if (style === "clean") {
+        stage.style.background = bg.css;
+        mascot.style.display = "none";
+        dot.style.display = "none";
+      } else if (style === "poster") {
+        stage.style.background = bg.css;
+        mascot.style.display = showBottomImage ? "block" : "none";
+        dot.style.display = showImage ? "grid" : "none";
+      } else {
+        stage.style.background = bg.css;
+        mascot.style.display = showBottomImage ? "block" : "none";
+        dot.style.display = showImage ? "grid" : "none";
+      }
+    }
+
+    function getGradient(name) {
+      const gradients = {
+        sky: { stops: [[0, "#dceeff"], [.34, "#ffffff"], [1, "#fff9bd"]], css: "linear-gradient(180deg, #dceeff, #fff 34%, #fff9bd)" },
+        sunny: { stops: [[0, "#fff53a"], [.42, "#ffffff"], [1, "#ffdce6"]], css: "linear-gradient(180deg, #fff53a 0%, #ffffff 42%, #ffdce6 100%)" },
+        mint: { stops: [[0, "#d8f6e7"], [.48, "#ffffff"], [1, "#dceeff"]], css: "linear-gradient(180deg, #d8f6e7 0%, #ffffff 48%, #dceeff 100%)" },
+        lavender: { stops: [[0, "#eee4ff"], [.48, "#ffffff"], [1, "#ffe2ef"]], css: "linear-gradient(180deg, #eee4ff 0%, #ffffff 48%, #ffe2ef 100%)" },
+        mono: { stops: [[0, "#ffffff"], [.55, "#f5f6f8"], [1, "#e8ebf0"]], css: "linear-gradient(180deg, #ffffff 0%, #f5f6f8 55%, #e8ebf0 100%)" }
+      };
+      return gradients[name] || gradients.sky;
+    }
+
+    async function drawQr(text, title, style) {
+      state.lastQrText = text;
+      $("previewTitle").textContent = title.trim() || "스캔해서 바로 이동";
+      applyStyle(style || "mascot");
+      const canvas = $("qrCanvas");
+      const holder = document.createElement("div");
+      holder.style.position = "fixed";
+      holder.style.left = "-9999px";
+      document.body.appendChild(holder);
+      new QRCode(holder, {
+        text,
+        width: 1024,
+        height: 1024,
+        colorDark: state.color,
+        colorLight: "#ffffff",
+        correctLevel: QRCode.CorrectLevel.H
+      });
+      const madeCanvas = holder.querySelector("canvas");
+      const ctx = canvas.getContext("2d");
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(madeCanvas, 0, 0, canvas.width, canvas.height);
+      holder.remove();
+    }
+
+    async function shorten({ withQr }) {
+      if (location.protocol === "file:") {
+        return setStatus("파일로 직접 열면 URL 단축은 작동하지 않습니다. 배포된 go.jbot.kr에서 테스트해주세요.");
+      }
+
+      const url = normalizeUrl($("originalUrl").value || (withQr ? $("qrContent").value : ""));
+      const code = $("aliasMode").value === "manual" ? $("customCode").value.trim() : "";
+      const title = getQrTitle();
+      const ownerCode = saveOwnerCode($("ownerCode").value);
+      if (!url) return setStatus("원본 URL을 입력해야 단축 URL을 만들 수 있습니다.");
+
+      $("mainBtn").disabled = true;
+      setStatus("서버에 단축 URL을 저장하는 중입니다.");
+
+      try {
+        const response = await fetch("/api/shorten", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url, custom_code: code, title, owner_code: ownerCode })
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || "단축 URL 생성에 실패했습니다.");
+
+        state.lastShortUrl = data.short_url;
+        $("shortUrl").href = data.short_url;
+        $("shortUrl").textContent = data.short_url;
+        $("storageNote").textContent = data.persistent
+          ? "Vercel KV에 저장되어 배포 환경에서도 유지됩니다."
+          : "현재는 테스트용 임시 저장입니다. 실제 운영은 Vercel KV 연결이 필요합니다.";
+        $("resultBox").classList.add("show");
+        if (withQr) {
+          await drawQr(data.short_url, title, $("qrStyle").value);
+          setStatus("실제로 열리는 단축 URL과 QR을 만들었습니다.");
+        } else {
+          setStatus("실제로 열리는 단축 URL을 만들었습니다.");
+        }
+        loadMyLinks({ silent: true });
+      } catch (error) {
+        const message = error instanceof TypeError && error.message.includes("fetch")
+          ? "서버에 연결할 수 없습니다. 배포된 go.jbot.kr에서 열었는지 확인해주세요."
+          : error.message;
+        setStatus(message);
+      } finally {
+        $("mainBtn").disabled = false;
+      }
+    }
+
+    async function makeQrOnly() {
+      const text = $("qrContent").value.trim() || normalizeUrl($("originalUrl").value);
+      if (!text) return setStatus("QR에 넣을 URL 또는 문장을 입력해주세요.");
+      await drawQr(text, getQrTitle(), $("qrStyle").value);
+      setStatus("QR을 만들었습니다.");
+    }
+
+    async function runCurrentMode() {
+      if (state.mode === "short") return shorten({ withQr: false });
+      if (state.mode === "qr") return makeQrOnly();
+      return shorten({ withQr: true });
+    }
+
+    function updateAliasMode() {
+      const manual = $("aliasMode").value === "manual";
+      $("customCode").disabled = !manual;
+      $("customCode").placeholder = manual ? "예: notice, portal, lunch" : "자동 생성됩니다";
+      if (!manual) $("customCode").value = "";
+    }
+
+    function setMode(mode) {
+      state.mode = mode;
+      document.querySelectorAll(".tab").forEach((tab) => tab.classList.toggle("active", tab.dataset.mode === mode));
+      const wantsUrl = mode === "short" || mode === "both";
+      const wantsQr = mode === "qr" || mode === "both";
+      document.querySelectorAll(".mode-url").forEach((item) => item.classList.toggle("mode-hidden", !wantsUrl));
+      document.querySelectorAll(".mode-qr").forEach((item) => item.classList.toggle("mode-hidden", !wantsQr));
+      $("qrContentField").classList.toggle("mode-hidden", mode !== "qr");
+      $("previewPane").classList.toggle("hidden", !wantsQr);
+      $("mainBtn").textContent = mode === "short" ? "URL 단축하기" : mode === "qr" ? "QR 생성하기" : "URL 단축과 QR 생성하기";
+      $("copyBtn").classList.toggle("mode-hidden", mode === "qr");
+      $("resultBox").classList.remove("show");
+      setStatus(mode === "short" ? "URL 단축 화면입니다." : mode === "qr" ? "QR 생성 화면입니다." : "URL 단축과 QR을 함께 생성합니다.");
+    }
+
+    async function copy(text) {
+      if (!text) return setStatus("복사할 내용이 아직 없습니다.");
+      await navigator.clipboard.writeText(text);
+      setStatus("복사했습니다.");
+    }
+
+    async function loadMyLinks({ silent = false } = {}) {
+      if (location.protocol === "file:") {
+        return setStatus("파일로 직접 열면 목록 조회는 작동하지 않습니다. 배포된 go.jbot.kr에서 확인해주세요.");
+      }
+
+      const ownerCode = saveOwnerCode($("ownerCode").value);
+      if (!silent) setStatus("내 단축 URL 목록을 불러오는 중입니다.");
+
+      try {
+        const response = await fetch(`/api/list?owner_code=${encodeURIComponent(ownerCode)}`);
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || "목록을 불러오지 못했습니다.");
+        renderMyLinks(data.links || []);
+        if (!silent) setStatus(`${data.links.length}개의 단축 URL을 불러왔습니다.`);
+      } catch (error) {
+        setStatus(error.message);
+      }
+    }
+
+    function renderMyLinks(links) {
+      const list = $("linkList");
+      list.classList.add("show");
+      if (!links.length) {
+        list.innerHTML = '<p class="note">이 관리 코드로 만든 단축 URL이 아직 없습니다.</p>';
+        return;
+      }
+
+      list.innerHTML = links.map((item) => `
+        <div class="link-item">
+          <strong>${escapeHtml(item.title || item.code)}</strong>
+          <a href="${item.short_url}" target="_blank" rel="noreferrer">${item.short_url}</a>
+          <p class="note">${escapeHtml(item.original_url)}<br>${formatDate(item.created_at)}</p>
+        </div>
+      `).join("");
+    }
+
+    function escapeHtml(value) {
+      return String(value || "").replace(/[&<>"']/g, (char) => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;"
+      }[char]));
+    }
+
+    function formatDate(value) {
+      if (!value) return "";
+      return new Date(value).toLocaleString("ko-KR", { dateStyle: "medium", timeStyle: "short" });
+    }
+
+    function setPreviewImage(src) {
+      state.imageSrc = src || defaultMascotSrc;
+      state.imageEnabled = true;
+      $("mascotImg").src = state.imageSrc;
+      $("logoDot").querySelector("img").src = state.imageSrc;
+      document.querySelector(".brand img").src = state.imageSrc;
+      applyStyle($("qrStyle").value);
+      setStatus("이미지를 QR 카드에 적용했습니다.");
+    }
+
+    function hidePreviewImage() {
+      state.imageEnabled = false;
+      $("qrImage").value = "";
+      applyStyle($("qrStyle").value);
+      setStatus("QR 카드에서 이미지를 숨겼습니다.");
+    }
+
+    function readUploadedImage(input) {
+      const file = input.files?.[0];
+      if (!file) return;
+      if (!file.type.startsWith("image/")) {
+        input.value = "";
+        return setStatus("이미지 파일만 사용할 수 있습니다.");
+      }
+      const reader = new FileReader();
+      reader.onload = () => setPreviewImage(reader.result);
+      reader.readAsDataURL(file);
+    }
+
+    async function downloadCard() {
+      await waitForImage($("mascotImg"));
+      const source = $("captureArea");
+      const rect = source.getBoundingClientRect();
+      const isPoster = source.classList.contains("poster-mode");
+      const scale = 2;
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.round(rect.width * scale);
+      canvas.height = Math.round(rect.height * scale);
+      const ctx = canvas.getContext("2d");
+      ctx.scale(scale, scale);
+
+      const gradient = ctx.createLinearGradient(0, 0, 0, rect.height);
+      getGradient($("bgGradient").value).stops.forEach(([stop, color]) => gradient.addColorStop(stop, color));
+      ctx.fillStyle = gradient;
+      roundRect(ctx, 0, 0, rect.width, rect.height, 8);
+      ctx.fill();
+
+      ctx.fillStyle = isPoster ? "#061565" : "rgba(255,255,255,.86)";
+      roundRect(ctx, 22, 22, rect.width - 44, 72, 8);
+      ctx.fill();
+      ctx.fillStyle = isPoster ? "#ffffff" : "#1c1d22";
+      ctx.textAlign = "center";
+      ctx.font = "700 22px Malgun Gothic, sans-serif";
+      wrapText(ctx, $("previewTitle").textContent, rect.width / 2, 65, rect.width - 72, 28);
+      ctx.textAlign = "left";
+
+      const mascotVisible = $("mascotImg").style.display !== "none";
+      const mascotRatio = $("mascotImg").naturalHeight / $("mascotImg").naturalWidth || 1;
+      const footerGap = mascotVisible ? 18 : 0;
+      const bottomPad = mascotVisible ? 18 : 26;
+      const maxMascotW = isPoster ? Math.min(rect.width * .34, 150) : Math.min(rect.width * .68, 260);
+      const maxMascotH = mascotVisible ? Math.min(maxMascotW * mascotRatio, isPoster ? rect.height * .18 : rect.height * .26) : 0;
+      const reservedBottom = mascotVisible ? maxMascotH + footerGap + bottomPad : bottomPad;
+      const qrTop = 118;
+      const qrSize = isPoster
+        ? Math.min(rect.width * .84, 365, rect.height - qrTop - 70)
+        : Math.min(rect.width * .78, 340, rect.height - qrTop - reservedBottom - 20);
+      const qrX = (rect.width - qrSize) / 2;
+      const qrY = qrTop;
+      ctx.fillStyle = "#fff";
+      roundRect(ctx, qrX - 10, qrY - 10, qrSize + 20, qrSize + 20, 8);
+      ctx.fill();
+      ctx.drawImage($("qrCanvas"), qrX, qrY, qrSize, qrSize);
+
+      if ($("logoDot").style.display !== "none") {
+        const dot = qrSize * .23;
+        ctx.fillStyle = "#fff";
+        roundRect(ctx, qrX + qrSize / 2 - dot / 2, qrY + qrSize / 2 - dot / 2, dot, dot, 8);
+        ctx.fill();
+        ctx.drawImage($("mascotImg"), qrX + qrSize / 2 - dot * .56, qrY + qrSize / 2 - dot * .56, dot * 1.12, dot * 1.12);
+      }
+
+      if (mascotVisible) {
+        const imgH = maxMascotH;
+        const imgW = imgH / mascotRatio;
+        const imgX = isPoster ? rect.width - imgW - 16 : (rect.width - imgW) / 2;
+        const imgY = isPoster ? rect.height - imgH - 82 : qrY + qrSize + footerGap;
+        ctx.drawImage($("mascotImg"), imgX, imgY, imgW, imgH);
+      }
+
+      saveCanvasAsPng(canvas, `maeramae-qr-${Date.now()}.png`);
+    }
+
+    function waitForImage(img) {
+      if (!img || img.complete) return Promise.resolve();
+      return new Promise((resolve) => {
+        img.onload = resolve;
+        img.onerror = resolve;
+      });
+    }
+
+    function saveCanvasAsPng(canvas, filename) {
+      canvas.toBlob((blob) => {
+        if (!blob) {
+          setStatus("PNG 저장에 실패했습니다. 다시 시도해주세요.");
+          return;
+        }
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.download = filename;
+        a.href = url;
+        a.style.display = "none";
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => {
+          a.remove();
+        }, 1000);
+        setStatus("PNG 저장을 시도했습니다.");
+      }, "image/png");
+    }
+
+    function roundRect(ctx, x, y, width, height, radius) {
+      ctx.beginPath();
+      ctx.moveTo(x + radius, y);
+      ctx.arcTo(x + width, y, x + width, y + height, radius);
+      ctx.arcTo(x + width, y + height, x, y + height, radius);
+      ctx.arcTo(x, y + height, x, y, radius);
+      ctx.arcTo(x, y, x + width, y, radius);
+      ctx.closePath();
+    }
+
+    function wrapText(ctx, text, x, y, maxWidth, lineHeight) {
+      const chars = [...text];
+      let line = "";
+      let lines = 0;
+      chars.forEach((char) => {
+        const test = line + char;
+        if (ctx.measureText(test).width > maxWidth && line) {
+          ctx.fillText(line, x, y + lines * lineHeight);
+          line = char;
+          lines += 1;
+        } else {
+          line = test;
+        }
+      });
+      if (line) ctx.fillText(line, x, y + lines * lineHeight);
+    }
+
+    document.querySelectorAll(".swatch").forEach((button) => {
+      button.addEventListener("click", () => {
+        document.querySelectorAll(".swatch").forEach((item) => item.classList.remove("active"));
+        button.classList.add("active");
+        state.color = button.dataset.color;
+        drawQr(state.lastQrText, $("previewTitle").textContent, $("qrStyle").value);
+      });
+    });
+
+    document.querySelectorAll(".tab").forEach((tab) => tab.addEventListener("click", () => setMode(tab.dataset.mode)));
+    $("aliasMode").addEventListener("change", updateAliasMode);
+    $("mainBtn").addEventListener("click", runCurrentMode);
+    $("copyBtn").addEventListener("click", () => copy(state.lastShortUrl));
+    $("copyOwnerCode").addEventListener("click", () => copy(saveOwnerCode($("ownerCode").value)));
+    $("newOwnerCode").addEventListener("click", () => {
+      saveOwnerCode(generateOwnerCode());
+      $("linkList").classList.remove("show");
+      setStatus("새 관리 코드를 만들었습니다. 이전 코드 목록은 이전 코드로 다시 조회할 수 있습니다.");
+    });
+    $("loadMyLinks").addEventListener("click", () => loadMyLinks());
+    $("ownerCode").addEventListener("blur", () => {
+      if ($("ownerCode").value) saveOwnerCode($("ownerCode").value);
+    });
+    $("copyQrText").addEventListener("click", () => copy(state.lastQrText));
+    $("downloadPng").addEventListener("click", downloadCard);
+    $("openBtn").addEventListener("click", () => state.lastShortUrl && window.open(state.lastShortUrl, "_blank"));
+    $("newBtn").addEventListener("click", () => {
+      $("originalUrl").value = "";
+      $("customCode").value = "";
+      $("qrContent").value = "";
+      $("resultBox").classList.remove("show");
+      $("originalUrl").focus();
+      setStatus("새 링크를 만들 준비가 됐습니다.");
+    });
+    $("qrStyle").addEventListener("change", () => drawQr(state.lastQrText, $("previewTitle").textContent, $("qrStyle").value));
+    $("bgGradient").addEventListener("change", () => applyStyle($("qrStyle").value));
+    $("bottomImageMode").addEventListener("change", () => applyStyle($("qrStyle").value));
+    $("qrTitle").addEventListener("input", () => $("previewTitle").textContent = getQrTitle());
+    $("qrImage").addEventListener("change", () => readUploadedImage($("qrImage")));
+    $("resetImage").addEventListener("click", () => {
+      $("qrImage").value = "";
+      setPreviewImage(defaultMascotSrc);
+    });
+    $("hideImage").addEventListener("click", hidePreviewImage);
+
+    initOwnerCode();
+    updateAliasMode();
+    setMode("short");
+    setPreviewImage(defaultMascotSrc);
+    drawQr(location.origin, getQrTitle(), "mascot");
+  </script>
+</body>
+</html>
+
