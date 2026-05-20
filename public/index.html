@@ -659,6 +659,17 @@
       return $("qrTitle").value.trim() || "매탄중학교 업무포털";
     }
 
+    function getLinkTitle(url, code) {
+      const manualTitle = state.mode === "both" ? $("qrTitle").value.trim() : "";
+      if (manualTitle) return manualTitle;
+      if (code) return code;
+      try {
+        return new URL(url).hostname.replace(/^www\./, "");
+      } catch {
+        return url;
+      }
+    }
+
     function generateOwnerCode() {
       const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
       const part = (length) => Array.from({ length }, () => alphabet[Math.floor(Math.random() * alphabet.length)]).join("");
@@ -747,7 +758,8 @@
 
       const url = normalizeUrl($("originalUrl").value || (withQr ? $("qrContent").value : ""));
       const code = $("aliasMode").value === "manual" ? $("customCode").value.trim() : "";
-      const title = getQrTitle();
+      const qrTitle = getQrTitle();
+      const linkTitle = getLinkTitle(url, code);
       const ownerCode = saveOwnerCode($("ownerCode").value);
       if (!url) return setStatus("원본 URL을 입력해야 단축 URL을 만들 수 있습니다.");
 
@@ -758,7 +770,7 @@
         const response = await fetch("/api/shorten", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ url, custom_code: code, title, owner_code: ownerCode })
+          body: JSON.stringify({ url, custom_code: code, title: linkTitle, owner_code: ownerCode })
         });
         const data = await response.json();
         if (!response.ok) throw new Error(data.error || "단축 URL 생성에 실패했습니다.");
@@ -771,7 +783,7 @@
           : "현재는 테스트용 임시 저장입니다. 실제 운영은 Vercel KV 연결이 필요합니다.";
         $("resultBox").classList.add("show");
         if (withQr) {
-          await drawQr(data.short_url, title, $("qrStyle").value);
+          await drawQr(data.short_url, qrTitle, $("qrStyle").value);
           setStatus("실제로 열리는 단축 URL과 QR을 만들었습니다.");
         } else {
           setStatus("실제로 열리는 단축 URL을 만들었습니다.");
@@ -857,11 +869,20 @@
 
       list.innerHTML = links.map((item) => `
         <div class="link-item">
-          <strong>${escapeHtml(item.title || item.code)}</strong>
+          <strong>${escapeHtml(getListTitle(item))}</strong>
           <a href="${item.short_url}" target="_blank" rel="noreferrer">${item.short_url}</a>
           <p class="note">${escapeHtml(item.original_url)}<br>${formatDate(item.created_at)}</p>
         </div>
       `).join("");
+    }
+
+    function getListTitle(item) {
+      if (item.code) return item.code;
+      try {
+        return new URL(item.original_url).hostname.replace(/^www\./, "");
+      } catch {
+        return item.original_url || "단축 URL";
+      }
     }
 
     function escapeHtml(value) {
