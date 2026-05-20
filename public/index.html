@@ -507,6 +507,13 @@
               <button class="btn secondary" id="hideImage" type="button">이미지 없음</button>
             </div>
           </div>
+          <div class="field mode-qr">
+            <label for="bottomImageMode">하단 이미지</label>
+            <select id="bottomImageMode">
+              <option value="show">보이기</option>
+              <option value="hide">숨기기</option>
+            </select>
+          </div>
           <div class="field full mode-qr">
             <label>색상</label>
             <div class="swatches">
@@ -599,6 +606,7 @@
       const mascot = $("mascotImg");
       const dot = $("logoDot");
       const showImage = state.imageEnabled && style !== "clean";
+      const showBottomImage = showImage && $("bottomImageMode").value === "show";
       stage.classList.toggle("poster-mode", style === "poster");
       const bg = getGradient($("bgGradient").value);
       if (style === "clean") {
@@ -607,11 +615,11 @@
         dot.style.display = "none";
       } else if (style === "poster") {
         stage.style.background = bg.css;
-        mascot.style.display = showImage ? "block" : "none";
+        mascot.style.display = showBottomImage ? "block" : "none";
         dot.style.display = showImage ? "grid" : "none";
       } else {
         stage.style.background = bg.css;
-        mascot.style.display = showImage ? "block" : "none";
+        mascot.style.display = showBottomImage ? "block" : "none";
         dot.style.display = showImage ? "grid" : "none";
       }
     }
@@ -924,6 +932,7 @@
     });
     $("qrStyle").addEventListener("change", () => drawQr(state.lastQrText, $("previewTitle").textContent, $("qrStyle").value));
     $("bgGradient").addEventListener("change", () => applyStyle($("qrStyle").value));
+    $("bottomImageMode").addEventListener("change", () => applyStyle($("qrStyle").value));
     $("qrTitle").addEventListener("input", () => $("previewTitle").textContent = getQrTitle());
     $("qrImage").addEventListener("change", () => readUploadedImage($("qrImage")));
     $("resetImage").addEventListener("click", () => {
