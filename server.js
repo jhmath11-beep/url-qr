@@ -3,6 +3,7 @@ const fs = require("fs");
 const path = require("path");
 const shorten = require("./api/shorten");
 const redirect = require("./api/redirect");
+const list = require("./api/list");
 
 const publicDir = path.join(__dirname, "public");
 const port = Number(process.env.PORT || 8788);
@@ -30,6 +31,11 @@ const server = http.createServer((req, res) => {
 
   if (url.pathname === "/api/shorten") {
     shorten(req, res);
+    return;
+  }
+
+  if (url.pathname === "/api/list") {
+    list(req, res);
     return;
   }
 
