@@ -567,11 +567,6 @@
         <button class="btn" id="downloadPng" type="button">QR 카드 PNG 저장</button>
         <button class="btn secondary" id="copyQrText" type="button" title="QR에 담긴 링크나 문장을 복사합니다.">QR 원문 복사</button>
       </div>
-      <div class="download-preview" id="downloadPreview">
-        <p class="note">다운로드가 자동으로 안 되면 아래 이미지를 우클릭해서 저장하세요.</p>
-        <img id="downloadImage" alt="저장용 QR 카드 PNG 미리보기" />
-        <button class="btn secondary" id="openPngTab" type="button">PNG 새 탭 열기</button>
-      </div>
     </aside>
   </main>
 
@@ -851,12 +846,10 @@
     function saveCanvasAsPng(canvas, filename) {
       canvas.toBlob((blob) => {
         if (!blob) {
-          showGeneratedPng(canvas.toDataURL("image/png"));
-          setStatus("PNG 미리보기를 만들었습니다. 이미지 우클릭으로 저장하세요.");
+          setStatus("PNG 저장에 실패했습니다. 다시 시도해주세요.");
           return;
         }
         const url = URL.createObjectURL(blob);
-        showGeneratedPng(url);
         const a = document.createElement("a");
         a.download = filename;
         a.href = url;
@@ -866,13 +859,8 @@
         setTimeout(() => {
           a.remove();
         }, 1000);
-        setStatus("PNG 저장을 시도했습니다. 안 보이면 아래 미리보기 이미지를 저장하세요.");
+        setStatus("PNG 저장을 시도했습니다.");
       }, "image/png");
-    }
-
-    function showGeneratedPng(src) {
-      $("downloadImage").src = src;
-      $("downloadPreview").classList.add("show");
     }
 
     function roundRect(ctx, x, y, width, height, radius) {
@@ -917,10 +905,6 @@
     $("copyBtn").addEventListener("click", () => copy(state.lastShortUrl));
     $("copyQrText").addEventListener("click", () => copy(state.lastQrText));
     $("downloadPng").addEventListener("click", downloadCard);
-    $("openPngTab").addEventListener("click", () => {
-      const src = $("downloadImage").src;
-      if (src) window.open(src, "_blank");
-    });
     $("openBtn").addEventListener("click", () => state.lastShortUrl && window.open(state.lastShortUrl, "_blank"));
     $("newBtn").addEventListener("click", () => {
       $("originalUrl").value = "";
