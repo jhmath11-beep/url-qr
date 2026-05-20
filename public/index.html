@@ -378,7 +378,7 @@
     .qr-stage.poster-mode .mascot {
       position: absolute;
       right: 24px;
-      bottom: 44px;
+      bottom: 82px;
       width: min(22%, 82px);
       filter: drop-shadow(0 9px 13px rgba(0,0,0,.2));
     }
@@ -833,7 +833,7 @@
         const imgH = maxMascotH;
         const imgW = imgH / mascotRatio;
         const imgX = isPoster ? rect.width - imgW - 16 : (rect.width - imgW) / 2;
-        const imgY = isPoster ? rect.height - imgH - 14 : qrY + qrSize + footerGap;
+        const imgY = isPoster ? rect.height - imgH - 82 : qrY + qrSize + footerGap;
         ctx.drawImage($("mascotImg"), imgX, imgY, imgW, imgH);
       }
 
