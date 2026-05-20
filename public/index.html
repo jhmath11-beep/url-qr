@@ -250,6 +250,42 @@
       overflow-wrap: anywhere;
     }
 
+    .owner-tools {
+      grid-column: 1 / -1;
+      display: grid;
+      grid-template-columns: 1fr auto auto auto;
+      gap: 8px;
+      align-items: end;
+    }
+
+    .link-list {
+      display: none;
+      margin-top: 16px;
+      padding: 13px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fbfbfe;
+    }
+
+    .link-list.show { display: grid; gap: 10px; }
+
+    .link-item {
+      display: grid;
+      gap: 6px;
+      padding: 11px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+    }
+
+    .link-item strong { font-size: 14px; }
+
+    .link-item a {
+      color: var(--navy);
+      font-weight: 800;
+      overflow-wrap: anywhere;
+    }
+
     .note {
       color: var(--muted);
       font-size: 13px;
@@ -425,7 +461,7 @@
     }
 
     @media (max-width: 560px) {
-      .formgrid, .upload-row, .preview-tools { grid-template-columns: 1fr; }
+      .formgrid, .upload-row, .preview-tools, .owner-tools { grid-template-columns: 1fr; }
       .panel { padding: 16px; }
       .qr-stage {
         min-height: 500px;
@@ -472,6 +508,18 @@
           </div>
           <p class="note field full mode-url">
             별칭은 단축 주소의 마지막 부분입니다. 예를 들어 `https://도메인/s/notice`에서 `notice`가 별칭입니다.
+          </p>
+          <div class="owner-tools mode-url">
+            <div class="field">
+              <label for="ownerCode">내 관리 코드</label>
+              <input id="ownerCode" maxlength="32" placeholder="자동 생성됩니다" />
+            </div>
+            <button class="btn secondary" id="copyOwnerCode" type="button">코드 복사</button>
+            <button class="btn secondary" id="newOwnerCode" type="button">새 코드</button>
+            <button class="btn secondary" id="loadMyLinks" type="button">내 목록 보기</button>
+          </div>
+          <p class="note field full mode-url">
+            이 코드를 저장해두면 다른 PC에서도 같은 코드로 내가 만든 단축 URL 목록을 볼 수 있습니다.
           </p>
           <div class="field full mode-qr mode-hidden" id="qrContentField">
             <label for="qrContent">QR에 넣을 URL 또는 문장</label>
@@ -539,6 +587,7 @@
             <button class="btn secondary" id="newBtn" type="button">새로 만들기</button>
           </div>
         </div>
+        <div class="link-list" id="linkList"></div>
       </section>
 
       <p class="note" style="margin-top:12px;">
@@ -573,6 +622,7 @@
   <script>
     const defaultMascotSrc = "assets/maeramae_clean.png";
     const $ = (id) => document.getElementById(id);
+    const OWNER_CODE_KEY = "maeramaeOwnerCode";
     const state = {
       color: "#061565",
       imageSrc: defaultMascotSrc,
@@ -594,6 +644,27 @@
 
     function getQrTitle() {
       return $("qrTitle").value.trim() || "매탄중학교 업무포털";
+    }
+
+    function generateOwnerCode() {
+      const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+      const part = (length) => Array.from({ length }, () => alphabet[Math.floor(Math.random() * alphabet.length)]).join("");
+      return `JBT-${part(4)}-${part(4)}`;
+    }
+
+    function normalizeOwnerCode(value) {
+      return String(value || "").trim().toUpperCase().replace(/[^A-Z0-9-]/g, "").slice(0, 32);
+    }
+
+    function saveOwnerCode(value) {
+      const code = normalizeOwnerCode(value) || generateOwnerCode();
+      localStorage.setItem(OWNER_CODE_KEY, code);
+      $("ownerCode").value = code;
+      return code;
+    }
+
+    function initOwnerCode() {
+      saveOwnerCode(localStorage.getItem(OWNER_CODE_KEY) || generateOwnerCode());
     }
 
     function applyStyle(style) {
@@ -664,7 +735,8 @@
       const url = normalizeUrl($("originalUrl").value || (withQr ? $("qrContent").value : ""));
       const code = $("aliasMode").value === "manual" ? $("customCode").value.trim() : "";
       const title = getQrTitle();
-      if (!url) return setStatus("둘다 생성에서는 원본 URL을 입력해야 단축 URL과 QR을 함께 만들 수 있습니다.");
+      const ownerCode = saveOwnerCode($("ownerCode").value);
+      if (!url) return setStatus("원본 URL을 입력해야 단축 URL을 만들 수 있습니다.");
 
       $("mainBtn").disabled = true;
       setStatus("서버에 단축 URL을 저장하는 중입니다.");
@@ -673,7 +745,7 @@
         const response = await fetch("/api/shorten", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ url, custom_code: code, title })
+          body: JSON.stringify({ url, custom_code: code, title, owner_code: ownerCode })
         });
         const data = await response.json();
         if (!response.ok) throw new Error(data.error || "단축 URL 생성에 실패했습니다.");
@@ -691,6 +763,7 @@
         } else {
           setStatus("실제로 열리는 단축 URL을 만들었습니다.");
         }
+        loadMyLinks({ silent: true });
       } catch (error) {
         const message = error instanceof TypeError && error.message.includes("fetch")
           ? "서버에 연결할 수 없습니다. 배포된 go.jbot.kr에서 열었는지 확인해주세요."
@@ -740,6 +813,57 @@
       if (!text) return setStatus("복사할 내용이 아직 없습니다.");
       await navigator.clipboard.writeText(text);
       setStatus("복사했습니다.");
+    }
+
+    async function loadMyLinks({ silent = false } = {}) {
+      if (location.protocol === "file:") {
+        return setStatus("파일로 직접 열면 목록 조회는 작동하지 않습니다. 배포된 go.jbot.kr에서 확인해주세요.");
+      }
+
+      const ownerCode = saveOwnerCode($("ownerCode").value);
+      if (!silent) setStatus("내 단축 URL 목록을 불러오는 중입니다.");
+
+      try {
+        const response = await fetch(`/api/list?owner_code=${encodeURIComponent(ownerCode)}`);
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || "목록을 불러오지 못했습니다.");
+        renderMyLinks(data.links || []);
+        if (!silent) setStatus(`${data.links.length}개의 단축 URL을 불러왔습니다.`);
+      } catch (error) {
+        setStatus(error.message);
+      }
+    }
+
+    function renderMyLinks(links) {
+      const list = $("linkList");
+      list.classList.add("show");
+      if (!links.length) {
+        list.innerHTML = '<p class="note">이 관리 코드로 만든 단축 URL이 아직 없습니다.</p>';
+        return;
+      }
+
+      list.innerHTML = links.map((item) => `
+        <div class="link-item">
+          <strong>${escapeHtml(item.title || item.code)}</strong>
+          <a href="${item.short_url}" target="_blank" rel="noreferrer">${item.short_url}</a>
+          <p class="note">${escapeHtml(item.original_url)}<br>${formatDate(item.created_at)}</p>
+        </div>
+      `).join("");
+    }
+
+    function escapeHtml(value) {
+      return String(value || "").replace(/[&<>"']/g, (char) => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;"
+      }[char]));
+    }
+
+    function formatDate(value) {
+      if (!value) return "";
+      return new Date(value).toLocaleString("ko-KR", { dateStyle: "medium", timeStyle: "short" });
     }
 
     function setPreviewImage(src) {
@@ -903,6 +1027,16 @@
     $("aliasMode").addEventListener("change", updateAliasMode);
     $("mainBtn").addEventListener("click", runCurrentMode);
     $("copyBtn").addEventListener("click", () => copy(state.lastShortUrl));
+    $("copyOwnerCode").addEventListener("click", () => copy(saveOwnerCode($("ownerCode").value)));
+    $("newOwnerCode").addEventListener("click", () => {
+      saveOwnerCode(generateOwnerCode());
+      $("linkList").classList.remove("show");
+      setStatus("새 관리 코드를 만들었습니다. 이전 코드 목록은 이전 코드로 다시 조회할 수 있습니다.");
+    });
+    $("loadMyLinks").addEventListener("click", () => loadMyLinks());
+    $("ownerCode").addEventListener("input", () => {
+      $("ownerCode").value = normalizeOwnerCode($("ownerCode").value);
+    });
     $("copyQrText").addEventListener("click", () => copy(state.lastQrText));
     $("downloadPng").addEventListener("click", downloadCard);
     $("openBtn").addEventListener("click", () => state.lastShortUrl && window.open(state.lastShortUrl, "_blank"));
@@ -925,6 +1059,7 @@
     });
     $("hideImage").addEventListener("click", hidePreviewImage);
 
+    initOwnerCode();
     updateAliasMode();
     setMode("short");
     setPreviewImage(defaultMascotSrc);
