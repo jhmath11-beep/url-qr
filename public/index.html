@@ -258,6 +258,19 @@
       align-items: end;
     }
 
+    .owner-tools label::after {
+      content: "직접 입력 가능";
+      display: inline-block;
+      margin-left: 8px;
+      padding: 3px 7px;
+      border-radius: 999px;
+      background: #fff3c4;
+      color: #6f4f00;
+      font-size: 11px;
+      font-weight: 900;
+      vertical-align: middle;
+    }
+
     .link-list {
       display: none;
       margin-top: 16px;
@@ -512,7 +525,7 @@
           <div class="owner-tools">
             <div class="field">
               <label for="ownerCode">내 관리 코드</label>
-              <input id="ownerCode" maxlength="32" placeholder="예: JBT-KIM-2026" />
+              <input id="ownerCode" maxlength="32" placeholder="직접 입력 가능: 예: JBT-KIM-2026" autocomplete="off" />
             </div>
             <button class="btn secondary" id="copyOwnerCode" type="button">코드 복사</button>
             <button class="btn secondary" id="newOwnerCode" type="button">새 코드</button>
@@ -1034,9 +1047,8 @@
       setStatus("새 관리 코드를 만들었습니다. 이전 코드 목록은 이전 코드로 다시 조회할 수 있습니다.");
     });
     $("loadMyLinks").addEventListener("click", () => loadMyLinks());
-    $("ownerCode").addEventListener("input", () => {
-      $("ownerCode").value = normalizeOwnerCode($("ownerCode").value);
-      if ($("ownerCode").value) localStorage.setItem(OWNER_CODE_KEY, $("ownerCode").value);
+    $("ownerCode").addEventListener("blur", () => {
+      if ($("ownerCode").value) saveOwnerCode($("ownerCode").value);
     });
     $("copyQrText").addEventListener("click", () => copy(state.lastQrText));
     $("downloadPng").addEventListener("click", downloadCard);
