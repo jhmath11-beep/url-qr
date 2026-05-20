@@ -1,5 +1,7 @@
 const memoryStore = globalThis.__MAERAMAE_LINKS__ || new Map();
 globalThis.__MAERAMAE_LINKS__ = memoryStore;
+const memoryOwnerStore = globalThis.__MAERAMAE_OWNER_LINKS__ || new Map();
+globalThis.__MAERAMAE_OWNER_LINKS__ = memoryOwnerStore;
 
 function hasKv() {
   return Boolean(process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN);
@@ -35,10 +37,35 @@ async function setLink(code, value) {
       method: "POST",
       body: JSON.stringify(value)
     });
+    if (value.owner_code) {
+      await kvRequest(`/sadd/maeramae-owner:${encodeURIComponent(value.owner_code)}/${encodeURIComponent(code)}`, {
+        method: "POST"
+      });
+    }
     return "vercel-kv";
   }
   memoryStore.set(code, value);
+  if (value.owner_code) {
+    const ownerLinks = memoryOwnerStore.get(value.owner_code) || new Set();
+    ownerLinks.add(code);
+    memoryOwnerStore.set(value.owner_code, ownerLinks);
+  }
   return "memory";
 }
 
-module.exports = { getLink, setLink, hasKv };
+async function listLinks(ownerCode) {
+  if (hasKv()) {
+    const data = await kvRequest(`/smembers/maeramae-owner:${encodeURIComponent(ownerCode)}`);
+    const codes = Array.isArray(data.result) ? data.result : [];
+    const links = await Promise.all(codes.map((code) => getLink(code)));
+    return links.filter(Boolean).sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
+  }
+
+  const codes = Array.from(memoryOwnerStore.get(ownerCode) || []);
+  return codes
+    .map((code) => memoryStore.get(code))
+    .filter(Boolean)
+    .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
+}
+
+module.exports = { getLink, setLink, listLinks, hasKv };

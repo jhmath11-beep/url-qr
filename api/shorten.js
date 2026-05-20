@@ -1,6 +1,7 @@
 const { getLink, setLink, hasKv } = require("./_storage");
 
 const CODE_PATTERN = /^[a-zA-Z0-9가-힣_-]{2,40}$/;
+const OWNER_CODE_PATTERN = /^[A-Z0-9-]{6,32}$/;
 
 function sendJson(res, status, payload) {
   res.statusCode = status;
@@ -67,6 +68,7 @@ module.exports = async function handler(req, res) {
     const body = await readBody(req);
     const originalUrl = normalizeUrl(body.url);
     let code = String(body.custom_code || "").trim();
+    const ownerCode = String(body.owner_code || "").trim().toUpperCase();
 
     if (!originalUrl) {
       sendJson(res, 400, { error: "원본 URL을 입력해주세요." });
@@ -75,6 +77,11 @@ module.exports = async function handler(req, res) {
 
     if (code && !CODE_PATTERN.test(code)) {
       sendJson(res, 400, { error: "별칭은 2~40자의 한글, 영문, 숫자, -, _만 사용할 수 있습니다." });
+      return;
+    }
+
+    if (ownerCode && !OWNER_CODE_PATTERN.test(ownerCode)) {
+      sendJson(res, 400, { error: "관리 코드는 영문 대문자, 숫자, - 조합으로 6~32자만 사용할 수 있습니다." });
       return;
     }
 
@@ -91,6 +98,7 @@ module.exports = async function handler(req, res) {
       url: originalUrl,
       code,
       title: String(body.title || "").trim().slice(0, 80),
+      owner_code: ownerCode,
       created_at: new Date().toISOString()
     };
     const storage = await setLink(code, stored);
